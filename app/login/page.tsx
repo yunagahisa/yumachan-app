@@ -12,8 +12,6 @@ import {
   signInWithRedirect,
   getRedirectResult,
   GoogleAuthProvider,
-  fetchSignInMethodsForEmail,
-  onAuthStateChanged,
 } from "firebase/auth";
 
 export default function LoginPage() {
@@ -28,30 +26,18 @@ export default function LoginPage() {
     router.push("/");
   };
 
-  // ✅ ログイン状態監視（iPad対策の本体）
+  // ✅ redirect復帰（最低限＋確実版）
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        goNext();
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  // ✅ redirect復帰（補助）
-  useEffect(() => {
-    const run = async () => {
+    const checkRedirect = async () => {
       try {
         const result = await getRedirectResult(auth);
 
         if (result?.user) {
-          goNext();
-          return;
-        }
+          alert("Googleログイン成功");
 
-        // fallback（復帰遅延対策）
-        if (auth.currentUser) {
+          // ★ここ重要：auth復元待ち（iPad Safari対策）
+          await auth.authStateReady();
+
           goNext();
         }
       } catch (err) {
@@ -59,48 +45,17 @@ export default function LoginPage() {
       }
     };
 
-    run();
+    checkRedirect();
   }, []);
 
-  // EMAIL LOGIN
   const handleLogin = async () => {
     try {
       setLoading(true);
       setError("");
 
-      const methods = await fetchSignInMethodsForEmail(auth, email);
-
-      if (methods.includes("google.com")) {
-        setError("このメールはGoogleログインで登録されています");
-        return;
-      }
-
       await signInWithEmailAndPassword(auth, email, password);
 
-      goNext();
-    } catch (err: any) {
-      console.error(err);
-
-      if (err.code === "auth/too-many-requests") {
-        setError("ログイン失敗が多すぎます。少し待ってください。");
-      } else if (err.code === "auth/invalid-credential") {
-        setError("メールまたはパスワードが違います");
-      } else {
-        setError(err.message);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // SIGNUP
-  const handleSignup = async () => {
-    try {
-      setLoading(true);
-      setError("");
-
-      await createUserWithEmailAndPassword(auth, email, password);
-
+      alert("ログイン成功");
       goNext();
     } catch (err: any) {
       console.error(err);
@@ -110,7 +65,23 @@ export default function LoginPage() {
     }
   };
 
-  // GOOGLE LOGIN（統一：全部redirectでもOK）
+  const handleSignup = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      await createUserWithEmailAndPassword(auth, email, password);
+
+      alert("登録成功");
+      goNext();
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleGoogle = async () => {
     try {
       setLoading(true);
@@ -118,11 +89,22 @@ export default function LoginPage() {
 
       const provider = new GoogleAuthProvider();
 
-      // iPad判定やめて安定優先
-      await signInWithRedirect(auth, provider);
+      // ⚠️ iPad判定は残す（ただし挙動は変えない）
+      const isIPad =
+        /iPad|Macintosh/.test(navigator.userAgent) &&
+        "ontouchend" in document;
+
+      if (isIPad) {
+        await signInWithRedirect(auth, provider);
+        return;
+      }
+
+      await signInWithPopup(auth, provider);
+
+      alert("Googleログイン成功");
+      goNext();
     } catch (err: any) {
       console.error(err);
-
       setError(err.message);
       setLoading(false);
     }
