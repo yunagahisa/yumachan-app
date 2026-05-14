@@ -1,430 +1,405 @@
 "use client";
 
-
 import { useState, useEffect } from "react";
-
 
 import { auth } from "@/lib/firebase";
 
-
 import {
- signInWithEmailAndPassword,
- createUserWithEmailAndPassword,
- signInWithPopup,
- signInWithRedirect,
- getRedirectResult,
- GoogleAuthProvider,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
+  GoogleAuthProvider,
+  fetchSignInMethodsForEmail,
 } from "firebase/auth";
-
 
 import { useRouter } from "next/navigation";
 
-
 export default function LoginPage() {
 
+  const [email, setEmail] = useState("");
 
- const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
+  const [error, setError] = useState("");
 
- const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
+  const router = useRouter();
 
- const [error, setError] = useState("");
+  const goNext = () => {
+    window.location.href = "/";
+  };
 
+  // redirect復帰
+  useEffect(() => {
 
- const [loading, setLoading] = useState(false);
+    const checkRedirect = async () => {
 
+      try {
 
- const router = useRouter();
+        const result =
+          await getRedirectResult(auth);
 
+        // iPad redirect成功
+        if (result?.user) {
 
- const goNext = () => {
-   router.push("/");
- };
+          alert("Googleログイン成功");
 
+          goNext();
+        }
 
- // iPad redirect復帰用
- useEffect(() => {
+        // 既にログイン済みならhomeへ
+        else if (auth.currentUser) {
 
+          goNext();
+        }
 
-   const checkRedirect = async () => {
+      } catch (err) {
 
+        console.error(err);
+      }
+    };
 
-     try {
+    checkRedirect();
 
+  }, []);
 
-       const result =
-         await getRedirectResult(auth);
+  // EMAIL LOGIN
+  const handleLogin = async () => {
 
+    try {
 
-       if (result?.user) {
+      setLoading(true);
 
+      setError("");
 
-         alert("Googleログイン成功");
+      // Google登録済み確認
+      const methods =
+        await fetchSignInMethodsForEmail(
+          auth,
+          email
+        );
 
+      if (
+        methods.includes("google.com")
+      ) {
 
-         await auth.authStateReady();
+        setError(
+          "このメールはGoogleログインで登録されています"
+        );
 
+        setLoading(false);
 
-         goNext();
-       }
+        return;
+      }
 
+      await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
 
-     } catch (err) {
+      alert("ログイン成功");
 
+      goNext();
 
-       console.error(err);
-     }
-   };
+    } catch (err: any) {
 
+      console.error(err);
 
-   checkRedirect();
+      if (
+        err.code ===
+        "auth/too-many-requests"
+      ) {
 
+        setError(
+          "ログイン失敗が多すぎます。少し待ってください。"
+        );
 
- }, []);
+      } else if (
+        err.code ===
+        "auth/invalid-credential"
+      ) {
 
+        setError(
+          "メールまたはパスワードが違います"
+        );
 
- const handleLogin = async () => {
+      } else {
 
+        setError(err.message);
+      }
 
-   try {
+    } finally {
 
+      setLoading(false);
+    }
+  };
 
-     setLoading(true);
+  // SIGNUP
+  const handleSignup = async () => {
 
+    try {
 
-     setError("");
+      setLoading(true);
 
+      setError("");
 
-     await signInWithEmailAndPassword(
-       auth,
-       email,
-       password
-     );
+      await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
 
+      alert("登録成功");
 
-     alert("ログイン成功");
+      goNext();
 
+    } catch (err: any) {
 
-     goNext();
+      console.error(err);
 
+      setError(err.message);
 
-   } catch (err: any) {
+    } finally {
 
+      setLoading(false);
+    }
+  };
 
-     console.error(err);
+  // GOOGLE LOGIN
+  const handleGoogle = async () => {
 
+    try {
 
-     setError(err.message);
+      setLoading(true);
 
+      setError("");
 
-   } finally {
+      const provider =
+        new GoogleAuthProvider();
 
+      const isIPad =
+        /iPad|Macintosh/.test(
+          navigator.userAgent
+        ) &&
+        "ontouchend" in document;
 
-     setLoading(false);
-   }
- };
+      // iPad
+      if (isIPad) {
 
+        await signInWithRedirect(
+          auth,
+          provider
+        );
 
- const handleSignup = async () => {
+      } else {
 
+        // PC/Mac
+        await signInWithPopup(
+          auth,
+          provider
+        );
 
-   try {
-
-
-     setLoading(true);
-
-
-     setError("");
-
-
-     await createUserWithEmailAndPassword(
-       auth,
-       email,
-       password
-     );
-
-
-     alert("登録成功");
-
-
-     goNext();
-
-
-   } catch (err: any) {
-
-
-     console.error(err);
-
-
-     setError(err.message);
-
-
-   } finally {
-
-
-     setLoading(false);
-   }
- };
-
-
- const handleGoogle = async () => {
-
-
-   try {
-
-
-     setLoading(true);
-
-
-     setError("");
-
-
-     const provider =
-       new GoogleAuthProvider();
-
-
-     // iPad判定
-     const isIPad =
-       /iPad|Macintosh/.test(
-         navigator.userAgent
-       ) &&
-       "ontouchend" in document;
-
-
-     // iPad → redirect
-     if (isIPad) {
-
-
-       await signInWithRedirect(
-         auth,
-         provider
-       );
-
-
-     } else {
-
-
-       // Mac/Desktop → popup
-       await signInWithPopup(
-         auth,
-         provider
-       );
-
-
-       alert("Googleログイン成功");
-
-
-       goNext();
-     }
-
-
-   } catch (err: any) {
-
-
-     console.error(err);
-
-
-     setError(err.message);
-
-
-     setLoading(false);
-   }
- };
-
-
- return (
-
-
-   <div style={styles.container}>
-
-
-     <img
-       src="/logo.png"
-       alt="logo"
-       style={styles.logo}
-     />
-
-
-     <h1 style={styles.title}>
-       Login / Sign Up
-     </h1>
-
-
-     <input
-       style={styles.input}
-       placeholder="Email"
-       value={email}
-       onChange={(e) =>
-         setEmail(e.target.value)
-       }
-     />
-
-
-     <input
-       style={styles.input}
-       type="password"
-       placeholder="Password"
-       value={password}
-       onChange={(e) =>
-         setPassword(e.target.value)
-       }
-     />
-
-
-     {/* LOGIN */}
-     <form
-       onSubmit={(e) => {
-         e.preventDefault();
-         handleLogin();
-       }}
-     >
-       <button
-         type="submit"
-         style={styles.button}
-         disabled={loading}
-       >
-         Log In
-       </button>
-     </form>
-
-
-     {/* SIGNUP */}
-     <form
-       onSubmit={(e) => {
-         e.preventDefault();
-         handleSignup();
-       }}
-     >
-       <button
-         type="submit"
-         style={styles.button}
-         disabled={loading}
-       >
-         Sign Up
-       </button>
-     </form>
-
-
-     <div style={styles.divider} />
-
-
-     {/* GOOGLE */}
-     <form
-       onSubmit={(e) => {
-         e.preventDefault();
-         handleGoogle();
-       }}
-     >
-       <button
-         type="submit"
-         style={styles.googleButton}
-         disabled={loading}
-       >
-         Continue with Google
-       </button>
-     </form>
-
-
-     {loading && (
-       <p style={styles.loading}>
-         Loading...
-       </p>
-     )}
-
-
-     {error && (
-       <p style={styles.error}>
-         {error}
-       </p>
-     )}
-
-
-   </div>
- );
+        alert("Googleログイン成功");
+
+        goNext();
+      }
+
+    } catch (err: any) {
+
+      console.error(err);
+
+      if (
+        err.code ===
+        "auth/popup-blocked"
+      ) {
+
+        setError(
+          "Popupがブロックされました"
+        );
+
+      } else {
+
+        setError(err.message);
+      }
+
+      setLoading(false);
+    }
+  };
+
+  return (
+
+    <div style={styles.container}>
+
+      <img
+        src="/logo.png"
+        alt="logo"
+        style={styles.logo}
+      />
+
+      <h1 style={styles.title}>
+        Login / Sign Up
+      </h1>
+
+      <input
+        style={styles.input}
+        placeholder="Email"
+        value={email}
+        onChange={(e) =>
+          setEmail(e.target.value)
+        }
+      />
+
+      <input
+        style={styles.input}
+        type="password"
+        placeholder="Password"
+        value={password}
+        onChange={(e) =>
+          setPassword(e.target.value)
+        }
+      />
+
+      {/* LOGIN */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleLogin();
+        }}
+      >
+        <button
+          type="submit"
+          style={styles.button}
+          disabled={loading}
+        >
+          Log In
+        </button>
+      </form>
+
+      {/* SIGNUP */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleSignup();
+        }}
+      >
+        <button
+          type="submit"
+          style={styles.button}
+          disabled={loading}
+        >
+          Sign Up
+        </button>
+      </form>
+
+      <div style={styles.divider} />
+
+      {/* GOOGLE */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleGoogle();
+        }}
+      >
+        <button
+          type="submit"
+          style={styles.googleButton}
+          disabled={loading}
+        >
+          Continue with Google
+        </button>
+      </form>
+
+      {loading && (
+        <p style={styles.loading}>
+          Loading...
+        </p>
+      )}
+
+      {error && (
+        <p style={styles.error}>
+          {error}
+        </p>
+      )}
+
+    </div>
+  );
 }
-
 
 const styles = {
 
+  container: {
+    minHeight: "100dvh",
+    display: "flex",
+    flexDirection: "column" as const,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: "16px",
+    padding: "24px",
+    backgroundColor: "#fffaf7",
+  },
 
- container: {
-   minHeight: "100dvh",
-   display: "flex",
-   flexDirection: "column" as const,
-   justifyContent: "center",
-   alignItems: "center",
-   gap: "16px",
-   padding: "24px",
-   backgroundColor: "#fffaf7",
- },
+  logo: {
+    width: "120px",
+    marginBottom: "8px",
+  },
 
+  title: {
+    fontSize: "28px",
+    fontWeight: 500,
+    marginBottom: "8px",
+  },
 
- logo: {
-   width: "120px",
-   marginBottom: "8px",
- },
+  input: {
+    width: "280px",
+    padding: "14px",
+    borderRadius: "14px",
+    border: "1px solid #ddd",
+    fontSize: "16px",
+    background: "white",
+  },
 
+  button: {
+    width: "280px",
+    padding: "14px",
+    borderRadius: "999px",
+    border: "none",
+    background: "#222",
+    color: "white",
+    fontSize: "14px",
+    cursor: "pointer",
+  },
 
- title: {
-   fontSize: "28px",
-   fontWeight: 500,
-   marginBottom: "8px",
- },
+  googleButton: {
+    width: "280px",
+    padding: "14px",
+    borderRadius: "999px",
+    border: "1px solid #ddd",
+    background: "white",
+    fontSize: "14px",
+    cursor: "pointer",
+  },
 
+  divider: {
+    width: "120px",
+    height: "1px",
+    background: "#ddd",
+    margin: "8px 0",
+  },
 
- input: {
-   width: "280px",
-   padding: "14px",
-   borderRadius: "14px",
-   border: "1px solid #ddd",
-   fontSize: "16px",
-   background: "white",
- },
+  loading: {
+    fontSize: "14px",
+    opacity: 0.7,
+  },
 
-
- button: {
-   width: "280px",
-   padding: "14px",
-   borderRadius: "999px",
-   border: "none",
-   background: "#222",
-   color: "white",
-   fontSize: "14px",
-   cursor: "pointer",
- },
-
-
- googleButton: {
-   width: "280px",
-   padding: "14px",
-   borderRadius: "999px",
-   border: "1px solid #ddd",
-   background: "white",
-   fontSize: "14px",
-   cursor: "pointer",
- },
-
-
- divider: {
-   width: "120px",
-   height: "1px",
-   background: "#ddd",
-   margin: "8px 0",
- },
-
-
- loading: {
-   fontSize: "14px",
-   opacity: 0.7,
- },
-
-
- error: {
-   width: "280px",
-   color: "red",
-   fontSize: "13px",
-   textAlign: "center" as const,
-   lineHeight: 1.5,
- },
+  error: {
+    width: "280px",
+    color: "red",
+    fontSize: "13px",
+    textAlign: "center" as const,
+    lineHeight: 1.5,
+  },
 };
