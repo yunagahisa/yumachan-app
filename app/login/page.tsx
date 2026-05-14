@@ -12,6 +12,7 @@ import {
   signInWithRedirect,
   getRedirectResult,
   GoogleAuthProvider,
+  onAuthStateChanged, // ←追加（デバッグ用）
 } from "firebase/auth";
 
 export default function LoginPage() {
@@ -26,26 +27,44 @@ export default function LoginPage() {
     router.push("/");
   };
 
-  // ✅ redirect復帰（最低限＋確実版）
+  // =========================
+  // 🔍 redirect復帰チェック
+  // =========================
   useEffect(() => {
     const checkRedirect = async () => {
       try {
         const result = await getRedirectResult(auth);
 
-        if (result?.user) {
-          alert("Googleログイン成功");
+        console.log("getRedirectResult:", result);
 
-          // ★ここ重要：auth復元待ち（iPad Safari対策）
+        if (result?.user) {
+          alert("Googleログイン成功（redirect）");
+
           await auth.authStateReady();
 
           goNext();
         }
       } catch (err) {
-        console.error(err);
+        console.error("redirect error:", err);
       }
     };
 
     checkRedirect();
+  }, []);
+
+  // =========================
+  // 🔍 iPadで「本当にログインしてるか」確認
+  // =========================
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      console.log("AUTH STATE CHANGED:", user);
+
+      if (user) {
+        console.log("LOGGED IN USER:", user.email);
+      }
+    });
+
+    return () => unsub();
   }, []);
 
   const handleLogin = async () => {
@@ -89,19 +108,22 @@ export default function LoginPage() {
 
       const provider = new GoogleAuthProvider();
 
-      // ⚠️ iPad判定は残す（ただし挙動は変えない）
       const isIPad =
         /iPad|Macintosh/.test(navigator.userAgent) &&
         "ontouchend" in document;
 
+      console.log("isIPad:", isIPad);
+
       if (isIPad) {
+        console.log("redirect login start");
+
         await signInWithRedirect(auth, provider);
         return;
       }
 
       await signInWithPopup(auth, provider);
 
-      alert("Googleログイン成功");
+      alert("Googleログイン成功（popup）");
       goNext();
     } catch (err: any) {
       console.error(err);
@@ -131,7 +153,6 @@ export default function LoginPage() {
         onChange={(e) => setPassword(e.target.value)}
       />
 
-      {/* LOGIN */}
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -143,7 +164,6 @@ export default function LoginPage() {
         </button>
       </form>
 
-      {/* SIGNUP */}
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -157,7 +177,6 @@ export default function LoginPage() {
 
       <div style={styles.divider} />
 
-      {/* GOOGLE */}
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -187,18 +206,15 @@ const styles = {
     padding: "24px",
     backgroundColor: "#fffaf7",
   },
-
   logo: {
     width: "120px",
     marginBottom: "8px",
   },
-
   title: {
     fontSize: "28px",
     fontWeight: 500,
     marginBottom: "8px",
   },
-
   input: {
     width: "280px",
     padding: "14px",
@@ -207,7 +223,6 @@ const styles = {
     fontSize: "16px",
     background: "white",
   },
-
   button: {
     width: "280px",
     padding: "14px",
@@ -218,7 +233,6 @@ const styles = {
     fontSize: "14px",
     cursor: "pointer",
   },
-
   googleButton: {
     width: "280px",
     padding: "14px",
@@ -228,19 +242,16 @@ const styles = {
     fontSize: "14px",
     cursor: "pointer",
   },
-
   divider: {
     width: "120px",
     height: "1px",
     background: "#ddd",
     margin: "8px 0",
   },
-
   loading: {
     fontSize: "14px",
     opacity: 0.7,
   },
-
   error: {
     width: "280px",
     color: "red",
