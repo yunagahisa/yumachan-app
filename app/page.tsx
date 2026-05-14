@@ -1,290 +1,279 @@
 "use client";
 
-import { useState, useEffect } from "react";
 
+import { useEffect, useState } from "react";
+import Link from "next/link";
+
+
+import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 
-import {
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signInWithPopup,
-  signInWithRedirect,
-  GoogleAuthProvider,
-  onAuthStateChanged,
-} from "firebase/auth";
 
-import { useRouter } from "next/navigation";
+import { useAuth } from "./hooks/useAuth";
 
-export default function LoginPage() {
 
-  const [email, setEmail] = useState("");
+import { getUserYumas } from "@/lib/getUserYumas";
+import { getWork } from "@/lib/getWork";
 
-  const [password, setPassword] = useState("");
 
-  const [error, setError] = useState("");
+export default function Home() {
 
-  const [loading, setLoading] = useState(true);
 
-  const router = useRouter();
+ const { user, loading } = useAuth();
 
-  // Firebaseログイン監視
-  useEffect(() => {
 
-    const unsubscribe =
-      onAuthStateChanged(auth, (user) => {
+ const [works, setWorks] = useState<any[]>([]);
 
-        // ログイン済みならHOMEへ
-        if (user) {
 
-          router.replace("/");
-        }
+ useEffect(() => {
 
-        setLoading(false);
-      });
 
-    return () => unsubscribe();
+   const fetchYumas = async () => {
 
-  }, []);
 
-  const handleLogin = async () => {
+     if (!user) return;
 
-    try {
 
-      setError("");
+     // ユーザー所有ユマ取得
+     const yumas = await getUserYumas(user.uid);
 
-      await signInWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
 
-      router.replace("/");
+     // works取得
+     const workData = await Promise.all(
+       yumas.map(async (yuma: any) => {
 
-    } catch (err: any) {
 
-      console.error(err);
+         const work = await getWork(yuma.id);
 
-      setError(err.message);
-    }
-  };
 
-  const handleSignup = async () => {
+         return {
+           id: yuma.id,
+           ...work,
+         };
+       })
+     );
 
-    try {
 
-      setError("");
+     setWorks(workData);
+   };
 
-      await createUserWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
 
-      router.replace("/");
+   fetchYumas();
 
-    } catch (err: any) {
 
-      console.error(err);
+ }, [user]);
 
-      setError(err.message);
-    }
-  };
 
-  const handleGoogle = async () => {
+ // loading中
+ if (loading) {
 
-    try {
 
-      setError("");
+   return (
+     <div style={styles.empty}>
+       <h1>Your Yuma Home</h1>
+     </div>
+   );
+ }
 
-      const provider =
-        new GoogleAuthProvider();
 
-      // iPad判定
-      const isIPad =
-        /iPad|Macintosh/.test(
-          navigator.userAgent
-        ) &&
-        "ontouchend" in document;
+ // 未ログイン
+ if (!user) {
 
-      // iPad → redirect
-      if (isIPad) {
 
-        await signInWithRedirect(
-          auth,
-          provider
-        );
+   return (
+     <div style={styles.empty}>
 
-      } else {
 
-        // PC/Mac → popup
-        await signInWithPopup(
-          auth,
-          provider
-        );
+       <h1>
+         ユマちゃんへようこそ
+       </h1>
 
-        router.replace("/");
-      }
 
-    } catch (err: any) {
+       <p>
+         ログインするとコレクションが表示されます
+       </p>
 
-      console.error(err);
 
-      setError(err.message);
-    }
-  };
+       <Link href="/login">
+         <button style={styles.loginButton}>
+           Login
+         </button>
+       </Link>
 
-  // Firebase判定待ち
-  if (loading) {
 
-    return (
-      <div style={styles.loadingWrap}>
-        Loading...
-      </div>
-    );
-  }
+     </div>
+   );
+ }
 
-  return (
 
-    <div style={styles.container}>
+ // ログイン済み
+ return (
 
-      <img
-        src="/logo.png"
-        alt="logo"
-        style={styles.logo}
-      />
 
-      <h1 style={styles.title}>
-        Login / Sign Up
-      </h1>
+   <div style={styles.container}>
 
-      <input
-        style={styles.input}
-        placeholder="Email"
-        value={email}
-        onChange={(e) =>
-          setEmail(e.target.value)
-        }
-      />
 
-      <input
-        style={styles.input}
-        type="password"
-        placeholder="Password"
-        value={password}
-        onChange={(e) =>
-          setPassword(e.target.value)
-        }
-      />
+     {/* LOGOUT BUTTON */}
+     <button
+       style={styles.logoutButton}
+       onClick={async () => {
 
-      {/* LOGIN */}
-      <button
-        style={styles.button}
-        onClick={handleLogin}
-      >
-        Log In
-      </button>
 
-      {/* SIGNUP */}
-      <button
-        style={styles.button}
-        onClick={handleSignup}
-      >
-        Sign Up
-      </button>
+         await signOut(auth);
 
-      <div style={styles.divider} />
 
-      {/* GOOGLE */}
-      <button
-        style={styles.googleButton}
-        onClick={handleGoogle}
-      >
-        Continue with Google
-      </button>
+         window.location.href = "/login";
+       }}
+     >
+       Logout
+     </button>
 
-      {error && (
-        <p style={styles.error}>
-          {error}
-        </p>
-      )}
 
-    </div>
-  );
+     <h1 style={styles.title}>
+       Your Yuma Home
+     </h1>
+
+
+     <div style={styles.yumaArea}>
+
+
+       {works.map((work, index) => (
+
+
+         <Link
+           key={work.id}
+           href={`/my/${work.id}`}
+           style={{
+             ...styles.yumaCard,
+             top: `${(index * 120) % 500}px`,
+             left: `${(index * 90) % 250}px`,
+           }}
+         >
+
+
+           <img
+             src={work.imageUrl}
+             alt={work.title}
+             style={styles.image}
+           />
+
+
+           <p style={styles.name}>
+             {work.title}
+           </p>
+
+
+         </Link>
+       ))}
+
+
+     </div>
+
+
+   </div>
+ );
 }
+
 
 const styles = {
 
-  container: {
-    minHeight: "100dvh",
-    display: "flex",
-    flexDirection: "column" as const,
-    justifyContent: "center",
-    alignItems: "center",
-    gap: "16px",
-    padding: "24px",
-    backgroundColor: "#fffaf7",
-  },
 
-  loadingWrap: {
-    minHeight: "100dvh",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-  },
+ container: {
+   minHeight: "100vh",
+   padding: "24px",
+   background: "#fffaf7",
+   overflow: "hidden",
+   position: "relative" as const,
+ },
 
-  logo: {
-    width: "120px",
-    marginBottom: "8px",
-  },
 
-  title: {
-    fontSize: "28px",
-    fontWeight: 500,
-    marginBottom: "8px",
-  },
+ title: {
+   textAlign: "center" as const,
+   marginTop: "80px",
+   marginBottom: "32px",
+   fontSize: "28px",
+   fontWeight: 500,
+ },
 
-  input: {
-    width: "280px",
-    padding: "14px",
-    borderRadius: "14px",
-    border: "1px solid #ddd",
-    fontSize: "16px",
-    background: "white",
-  },
 
-  button: {
-    width: "280px",
-    padding: "14px",
-    borderRadius: "999px",
-    border: "none",
-    background: "#222",
-    color: "white",
-    fontSize: "14px",
-    cursor: "pointer",
-  },
+ logoutButton: {
+   position: "fixed" as const,
 
-  googleButton: {
-    width: "280px",
-    padding: "14px",
-    borderRadius: "999px",
-    border: "1px solid #ddd",
-    background: "white",
-    fontSize: "14px",
-    cursor: "pointer",
-  },
 
-  divider: {
-    width: "120px",
-    height: "1px",
-    background: "#ddd",
-    margin: "8px 0",
-  },
+   top: "20px",
+   right: "20px",
 
-  error: {
-    width: "280px",
-    color: "red",
-    fontSize: "13px",
-    textAlign: "center" as const,
-    lineHeight: 1.5,
-  },
+
+   zIndex: 999999,
+
+
+   padding: "14px 24px",
+
+
+   borderRadius: "999px",
+   border: "none",
+
+
+   background: "red",
+   color: "white",
+
+
+   fontSize: "16px",
+   fontWeight: 700,
+
+
+   cursor: "pointer",
+
+
+   boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+ },
+
+
+ loginButton: {
+   marginTop: "24px",
+   padding: "12px 24px",
+   borderRadius: "999px",
+   border: "none",
+   background: "#222",
+   color: "white",
+   cursor: "pointer",
+   fontSize: "14px",
+ },
+
+
+ yumaArea: {
+   position: "relative" as const,
+   width: "100%",
+   height: "80vh",
+ },
+
+
+ yumaCard: {
+   position: "absolute" as const,
+   width: "120px",
+   textDecoration: "none",
+   color: "#222",
+ },
+
+
+ image: {
+   width: "120px",
+   height: "120px",
+   borderRadius: "24px",
+   objectFit: "cover" as const,
+   background: "#eee",
+ },
+
+
+ name: {
+   textAlign: "center" as const,
+   marginTop: "8px",
+   fontSize: "12px",
+ },
+
+
+ empty: {
+   padding: "40px",
+ },
 };
+
