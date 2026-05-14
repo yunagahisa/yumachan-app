@@ -1,333 +1,430 @@
 "use client";
 
+
 import { useState, useEffect } from "react";
+
 
 import { auth } from "@/lib/firebase";
 
+
 import {
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signInWithPopup,
-  signInWithRedirect,
-  GoogleAuthProvider,
-  onAuthStateChanged,
+ signInWithEmailAndPassword,
+ createUserWithEmailAndPassword,
+ signInWithPopup,
+ signInWithRedirect,
+ getRedirectResult,
+ GoogleAuthProvider,
 } from "firebase/auth";
+
 
 import { useRouter } from "next/navigation";
 
+
 export default function LoginPage() {
 
-  const [email, setEmail] = useState("");
 
-  const [password, setPassword] = useState("");
+ const [email, setEmail] = useState("");
 
-  const [error, setError] = useState("");
 
-  const [loading, setLoading] = useState(false);
+ const [password, setPassword] = useState("");
 
-  const router = useRouter();
 
-  // 通常遷移
-  const goNext = () => {
-    router.push("/");
-  };
+ const [error, setError] = useState("");
 
-  // iPad redirect復帰
-  useEffect(() => {
 
-    const unsubscribe =
-      onAuthStateChanged(auth, (user) => {
+ const [loading, setLoading] = useState(false);
 
-        if (user) {
 
-          // Safari/iPad対策
-          window.location.href = "/";
-        }
-      });
+ const router = useRouter();
 
-    return () => unsubscribe();
 
-  }, []);
+ const goNext = () => {
+   router.push("/");
+ };
 
-  const handleLogin = async () => {
 
-    try {
+ // iPad redirect復帰用
+ useEffect(() => {
 
-      setLoading(true);
 
-      setError("");
+   const checkRedirect = async () => {
 
-      await signInWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
 
-      alert("ログイン成功");
+     try {
 
-      goNext();
 
-    } catch (err: any) {
+       const result =
+         await getRedirectResult(auth);
 
-      console.error(err);
 
-      setError(err.message);
+       if (result?.user) {
 
-    } finally {
 
-      setLoading(false);
-    }
-  };
+         alert("Googleログイン成功");
 
-  const handleSignup = async () => {
 
-    try {
+         await auth.authStateReady();
 
-      setLoading(true);
 
-      setError("");
+         goNext();
+       }
 
-      await createUserWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
 
-      alert("登録成功");
+     } catch (err) {
 
-      goNext();
 
-    } catch (err: any) {
+       console.error(err);
+     }
+   };
 
-      console.error(err);
 
-      setError(err.message);
+   checkRedirect();
 
-    } finally {
 
-      setLoading(false);
-    }
-  };
+ }, []);
 
-  const handleGoogle = async () => {
 
-    try {
+ const handleLogin = async () => {
 
-      setLoading(true);
 
-      setError("");
+   try {
 
-      const provider =
-        new GoogleAuthProvider();
-
-      // iPad / iPhone 判定
-      const isIOS =
-        /iPad|iPhone|iPod|Macintosh/.test(
-          navigator.userAgent
-        ) &&
-        "ontouchend" in document;
-
-      // iOS Safari → redirect
-      if (isIOS) {
-
-        await signInWithRedirect(
-          auth,
-          provider
-        );
-
-      } else {
-
-        // PC → popup
-        await signInWithPopup(
-          auth,
-          provider
-        );
-
-        alert("Googleログイン成功");
-
-        goNext();
-      }
-
-    } catch (err: any) {
-
-      console.error(err);
-
-      setError(err.message);
-
-      setLoading(false);
-    }
-  };
-
-  return (
-
-    <div style={styles.container}>
-
-      <img
-        src="/logo.png"
-        alt="logo"
-        style={styles.logo}
-      />
-
-      <h1 style={styles.title}>
-        Login / Sign Up
-      </h1>
-
-      <input
-        style={styles.input}
-        placeholder="Email"
-        value={email}
-        onChange={(e) =>
-          setEmail(e.target.value)
-        }
-      />
-
-      <input
-        style={styles.input}
-        type="password"
-        placeholder="Password"
-        value={password}
-        onChange={(e) =>
-          setPassword(e.target.value)
-        }
-      />
-
-      {/* LOGIN */}
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          handleLogin();
-        }}
-      >
-        <button
-          type="submit"
-          style={styles.button}
-          disabled={loading}
-        >
-          Log In
-        </button>
-      </form>
-
-      {/* SIGNUP */}
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          handleSignup();
-        }}
-      >
-        <button
-          type="submit"
-          style={styles.button}
-          disabled={loading}
-        >
-          Sign Up
-        </button>
-      </form>
-
-      <div style={styles.divider} />
-
-      {/* GOOGLE */}
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          handleGoogle();
-        }}
-      >
-        <button
-          type="submit"
-          style={styles.googleButton}
-          disabled={loading}
-        >
-          Continue with Google
-        </button>
-      </form>
-
-      {loading && (
-        <p style={styles.loading}>
-          Loading...
-        </p>
-      )}
-
-      {error && (
-        <p style={styles.error}>
-          {error}
-        </p>
-      )}
-
-    </div>
-  );
+
+     setLoading(true);
+
+
+     setError("");
+
+
+     await signInWithEmailAndPassword(
+       auth,
+       email,
+       password
+     );
+
+
+     alert("ログイン成功");
+
+
+     goNext();
+
+
+   } catch (err: any) {
+
+
+     console.error(err);
+
+
+     setError(err.message);
+
+
+   } finally {
+
+
+     setLoading(false);
+   }
+ };
+
+
+ const handleSignup = async () => {
+
+
+   try {
+
+
+     setLoading(true);
+
+
+     setError("");
+
+
+     await createUserWithEmailAndPassword(
+       auth,
+       email,
+       password
+     );
+
+
+     alert("登録成功");
+
+
+     goNext();
+
+
+   } catch (err: any) {
+
+
+     console.error(err);
+
+
+     setError(err.message);
+
+
+   } finally {
+
+
+     setLoading(false);
+   }
+ };
+
+
+ const handleGoogle = async () => {
+
+
+   try {
+
+
+     setLoading(true);
+
+
+     setError("");
+
+
+     const provider =
+       new GoogleAuthProvider();
+
+
+     // iPad判定
+     const isIPad =
+       /iPad|Macintosh/.test(
+         navigator.userAgent
+       ) &&
+       "ontouchend" in document;
+
+
+     // iPad → redirect
+     if (isIPad) {
+
+
+       await signInWithRedirect(
+         auth,
+         provider
+       );
+
+
+     } else {
+
+
+       // Mac/Desktop → popup
+       await signInWithPopup(
+         auth,
+         provider
+       );
+
+
+       alert("Googleログイン成功");
+
+
+       goNext();
+     }
+
+
+   } catch (err: any) {
+
+
+     console.error(err);
+
+
+     setError(err.message);
+
+
+     setLoading(false);
+   }
+ };
+
+
+ return (
+
+
+   <div style={styles.container}>
+
+
+     <img
+       src="/logo.png"
+       alt="logo"
+       style={styles.logo}
+     />
+
+
+     <h1 style={styles.title}>
+       Login / Sign Up
+     </h1>
+
+
+     <input
+       style={styles.input}
+       placeholder="Email"
+       value={email}
+       onChange={(e) =>
+         setEmail(e.target.value)
+       }
+     />
+
+
+     <input
+       style={styles.input}
+       type="password"
+       placeholder="Password"
+       value={password}
+       onChange={(e) =>
+         setPassword(e.target.value)
+       }
+     />
+
+
+     {/* LOGIN */}
+     <form
+       onSubmit={(e) => {
+         e.preventDefault();
+         handleLogin();
+       }}
+     >
+       <button
+         type="submit"
+         style={styles.button}
+         disabled={loading}
+       >
+         Log In
+       </button>
+     </form>
+
+
+     {/* SIGNUP */}
+     <form
+       onSubmit={(e) => {
+         e.preventDefault();
+         handleSignup();
+       }}
+     >
+       <button
+         type="submit"
+         style={styles.button}
+         disabled={loading}
+       >
+         Sign Up
+       </button>
+     </form>
+
+
+     <div style={styles.divider} />
+
+
+     {/* GOOGLE */}
+     <form
+       onSubmit={(e) => {
+         e.preventDefault();
+         handleGoogle();
+       }}
+     >
+       <button
+         type="submit"
+         style={styles.googleButton}
+         disabled={loading}
+       >
+         Continue with Google
+       </button>
+     </form>
+
+
+     {loading && (
+       <p style={styles.loading}>
+         Loading...
+       </p>
+     )}
+
+
+     {error && (
+       <p style={styles.error}>
+         {error}
+       </p>
+     )}
+
+
+   </div>
+ );
 }
+
 
 const styles = {
 
-  container: {
-    minHeight: "100dvh",
-    display: "flex",
-    flexDirection: "column" as const,
-    justifyContent: "center",
-    alignItems: "center",
-    gap: "16px",
-    padding: "24px",
-    backgroundColor: "#fffaf7",
-  },
 
-  logo: {
-    width: "120px",
-    marginBottom: "8px",
-  },
+ container: {
+   minHeight: "100dvh",
+   display: "flex",
+   flexDirection: "column" as const,
+   justifyContent: "center",
+   alignItems: "center",
+   gap: "16px",
+   padding: "24px",
+   backgroundColor: "#fffaf7",
+ },
 
-  title: {
-    fontSize: "28px",
-    fontWeight: 500,
-    marginBottom: "8px",
-  },
 
-  input: {
-    width: "280px",
-    padding: "14px",
-    borderRadius: "14px",
-    border: "1px solid #ddd",
-    fontSize: "16px",
-    background: "white",
-  },
+ logo: {
+   width: "120px",
+   marginBottom: "8px",
+ },
 
-  button: {
-    width: "280px",
-    padding: "14px",
-    borderRadius: "999px",
-    border: "none",
-    background: "#222",
-    color: "white",
-    fontSize: "14px",
-    cursor: "pointer",
-  },
 
-  googleButton: {
-    width: "280px",
-    padding: "14px",
-    borderRadius: "999px",
-    border: "1px solid #ddd",
-    background: "white",
-    fontSize: "14px",
-    cursor: "pointer",
-  },
+ title: {
+   fontSize: "28px",
+   fontWeight: 500,
+   marginBottom: "8px",
+ },
 
-  divider: {
-    width: "120px",
-    height: "1px",
-    background: "#ddd",
-    margin: "8px 0",
-  },
 
-  loading: {
-    fontSize: "14px",
-    opacity: 0.7,
-  },
+ input: {
+   width: "280px",
+   padding: "14px",
+   borderRadius: "14px",
+   border: "1px solid #ddd",
+   fontSize: "16px",
+   background: "white",
+ },
 
-  error: {
-    width: "280px",
-    color: "red",
-    fontSize: "13px",
-    textAlign: "center" as const,
-    lineHeight: 1.5,
-  },
+
+ button: {
+   width: "280px",
+   padding: "14px",
+   borderRadius: "999px",
+   border: "none",
+   background: "#222",
+   color: "white",
+   fontSize: "14px",
+   cursor: "pointer",
+ },
+
+
+ googleButton: {
+   width: "280px",
+   padding: "14px",
+   borderRadius: "999px",
+   border: "1px solid #ddd",
+   background: "white",
+   fontSize: "14px",
+   cursor: "pointer",
+ },
+
+
+ divider: {
+   width: "120px",
+   height: "1px",
+   background: "#ddd",
+   margin: "8px 0",
+ },
+
+
+ loading: {
+   fontSize: "14px",
+   opacity: 0.7,
+ },
+
+
+ error: {
+   width: "280px",
+   color: "red",
+   fontSize: "13px",
+   textAlign: "center" as const,
+   lineHeight: 1.5,
+ },
 };
