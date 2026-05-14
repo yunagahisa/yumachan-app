@@ -9,64 +9,40 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithPopup,
-  signInWithRedirect,
-  getRedirectResult,
   GoogleAuthProvider,
-  onAuthStateChanged, // ←追加（デバッグ用）
+  onAuthStateChanged,
 } from "firebase/auth";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState<string>("");
   const [loading, setLoading] = useState(false);
 
   const router = useRouter();
 
   const goNext = () => {
-    router.push("/");
+    router.replace("/");
   };
 
   // =========================
-  // 🔍 redirect復帰チェック
-  // =========================
-  useEffect(() => {
-    const checkRedirect = async () => {
-      try {
-        const result = await getRedirectResult(auth);
-
-        console.log("getRedirectResult:", result);
-
-        if (result?.user) {
-          alert("Googleログイン成功（redirect）");
-
-          await auth.authStateReady();
-
-          goNext();
-        }
-      } catch (err) {
-        console.error("redirect error:", err);
-      }
-    };
-
-    checkRedirect();
-  }, []);
-
-  // =========================
-  // 🔍 iPadで「本当にログインしてるか」確認
+  // 🔥 ログイン状態監視
   // =========================
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
-      console.log("AUTH STATE CHANGED:", user);
+      console.log("AUTH STATE:", user);
 
       if (user) {
-        console.log("LOGGED IN USER:", user.email);
+        goNext();
       }
     });
 
     return () => unsub();
   }, []);
 
+  // =========================
+  // EMAIL LOGIN
+  // =========================
   const handleLogin = async () => {
     try {
       setLoading(true);
@@ -78,12 +54,15 @@ export default function LoginPage() {
       goNext();
     } catch (err: any) {
       console.error(err);
-      setError(err.message);
+      setError(err?.message ?? "エラーが発生しました");
     } finally {
       setLoading(false);
     }
   };
 
+  // =========================
+  // SIGNUP
+  // =========================
   const handleSignup = async () => {
     try {
       setLoading(true);
@@ -95,12 +74,15 @@ export default function LoginPage() {
       goNext();
     } catch (err: any) {
       console.error(err);
-      setError(err.message);
+      setError(err?.message ?? "エラーが発生しました");
     } finally {
       setLoading(false);
     }
   };
 
+  // =========================
+  // GOOGLE LOGIN（安定版）
+  // =========================
   const handleGoogle = async () => {
     try {
       setLoading(true);
@@ -108,26 +90,13 @@ export default function LoginPage() {
 
       const provider = new GoogleAuthProvider();
 
-      const isIPad =
-        /iPad|Macintosh/.test(navigator.userAgent) &&
-        "ontouchend" in document;
-
-      console.log("isIPad:", isIPad);
-
-      if (isIPad) {
-        console.log("redirect login start");
-
-        await signInWithRedirect(auth, provider);
-        return;
-      }
-
       await signInWithPopup(auth, provider);
 
-      alert("Googleログイン成功（popup）");
+      alert("Googleログイン成功");
       goNext();
     } catch (err: any) {
       console.error(err);
-      setError(err.message);
+      setError(err?.message ?? "Googleログイン失敗");
       setLoading(false);
     }
   };
@@ -153,6 +122,7 @@ export default function LoginPage() {
         onChange={(e) => setPassword(e.target.value)}
       />
 
+      {/* LOGIN */}
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -164,6 +134,7 @@ export default function LoginPage() {
         </button>
       </form>
 
+      {/* SIGNUP */}
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -177,16 +148,14 @@ export default function LoginPage() {
 
       <div style={styles.divider} />
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          handleGoogle();
-        }}
+      {/* GOOGLE */}
+      <button
+        onClick={handleGoogle}
+        style={styles.googleButton}
+        disabled={loading}
       >
-        <button type="submit" style={styles.googleButton} disabled={loading}>
-          Continue with Google
-        </button>
-      </form>
+        Continue with Google
+      </button>
 
       {loading && <p style={styles.loading}>Loading...</p>}
 
@@ -206,15 +175,18 @@ const styles = {
     padding: "24px",
     backgroundColor: "#fffaf7",
   },
+
   logo: {
     width: "120px",
     marginBottom: "8px",
   },
+
   title: {
     fontSize: "28px",
     fontWeight: 500,
     marginBottom: "8px",
   },
+
   input: {
     width: "280px",
     padding: "14px",
@@ -223,6 +195,7 @@ const styles = {
     fontSize: "16px",
     background: "white",
   },
+
   button: {
     width: "280px",
     padding: "14px",
@@ -233,6 +206,7 @@ const styles = {
     fontSize: "14px",
     cursor: "pointer",
   },
+
   googleButton: {
     width: "280px",
     padding: "14px",
@@ -242,16 +216,19 @@ const styles = {
     fontSize: "14px",
     cursor: "pointer",
   },
+
   divider: {
     width: "120px",
     height: "1px",
     background: "#ddd",
     margin: "8px 0",
   },
+
   loading: {
     fontSize: "14px",
     opacity: 0.7,
   },
+
   error: {
     width: "280px",
     color: "red",
