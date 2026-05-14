@@ -48,7 +48,7 @@ function NavItem({
 
 const styles = {
   nav: {
-    position: "fixed",
+    position: "fixed" as const,
     bottom: 0,
     width: "100%",
     height: "60px",

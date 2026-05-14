@@ -13,9 +13,7 @@ import {
   GoogleAuthProvider,
 } from "firebase/auth";
 
-import { useRouter, useSearchParams } from "next/navigation";
-
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
 
@@ -29,16 +27,8 @@ export default function LoginPage() {
 
   const router = useRouter();
 
-  const params = useSearchParams();
-
-  const redirect = params.get("redirect");
-
   const goNext = () => {
-    if (redirect) {
-      router.push(redirect);
-    } else {
-      router.push("/");
-    }
+    router.push("/");
   };
 
   // iPad redirect復帰用
@@ -178,6 +168,7 @@ export default function LoginPage() {
   };
 
   return (
+
     <div style={styles.container}>
 
       <img
@@ -208,8 +199,6 @@ export default function LoginPage() {
           setPassword(e.target.value)
         }
       />
-
-      
 
       {/* LOGIN */}
       <form
@@ -329,9 +318,6 @@ const styles = {
     background: "white",
     fontSize: "14px",
     cursor: "pointer",
-
-    WebkitAppearance: "none",
-    touchAction: "manipulation",
   },
 
   divider: {
