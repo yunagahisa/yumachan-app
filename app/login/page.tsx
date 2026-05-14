@@ -9,8 +9,8 @@ import {
   createUserWithEmailAndPassword,
   signInWithPopup,
   signInWithRedirect,
-  getRedirectResult,
   GoogleAuthProvider,
+  onAuthStateChanged,
 } from "firebase/auth";
 
 import { useRouter } from "next/navigation";
@@ -27,34 +27,25 @@ export default function LoginPage() {
 
   const router = useRouter();
 
+  // 通常遷移
   const goNext = () => {
     router.push("/");
   };
 
-  // iPad redirect復帰用
+  // iPad redirect復帰
   useEffect(() => {
 
-    const checkRedirect = async () => {
+    const unsubscribe =
+      onAuthStateChanged(auth, (user) => {
 
-      try {
+        if (user) {
 
-        const result =
-          await getRedirectResult(auth);
-
-        if (result?.user) {
-
-          alert("Googleログイン成功");
-
-          goNext();
+          // Safari/iPad対策
+          window.location.href = "/";
         }
+      });
 
-      } catch (err) {
-
-        console.error(err);
-      }
-    };
-
-    checkRedirect();
+    return () => unsubscribe();
 
   }, []);
 
@@ -129,15 +120,15 @@ export default function LoginPage() {
       const provider =
         new GoogleAuthProvider();
 
-      // iPad判定
-      const isIPad =
-        /iPad|Macintosh/.test(
+      // iPad / iPhone 判定
+      const isIOS =
+        /iPad|iPhone|iPod|Macintosh/.test(
           navigator.userAgent
         ) &&
         "ontouchend" in document;
 
-      // iPad → redirect
-      if (isIPad) {
+      // iOS Safari → redirect
+      if (isIOS) {
 
         await signInWithRedirect(
           auth,
@@ -146,7 +137,7 @@ export default function LoginPage() {
 
       } else {
 
-        // Mac/Desktop → popup
+        // PC → popup
         await signInWithPopup(
           auth,
           provider
