@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 import { auth } from "@/lib/firebase";
@@ -8,7 +8,8 @@ import { auth } from "@/lib/firebase";
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider,
   onAuthStateChanged,
 } from "firebase/auth";
@@ -21,18 +22,12 @@ export default function LoginPage() {
 
   const router = useRouter();
 
-  // 🔥 初期ロード判定（iPadバグ対策の核心）
-  const initialized = useRef(false);
-
+  // =========================
+  // ログイン状態監視（唯一の正解）
+  // =========================
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
       console.log("AUTH STATE:", user);
-
-      // ❗初回は無視（iPadの勝手復元対策）
-      if (!initialized.current) {
-        initialized.current = true;
-        return;
-      }
 
       if (user) {
         router.replace("/");
@@ -41,6 +36,25 @@ export default function LoginPage() {
 
     return () => unsub();
   }, [router]);
+
+  // =========================
+  // redirect復帰処理（iPad用必須）
+  // =========================
+  useEffect(() => {
+    const checkRedirect = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+
+        if (result?.user) {
+          router.replace("/");
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    checkRedirect();
+  }, []);
 
   const handleLogin = async () => {
     try {
@@ -81,13 +95,11 @@ export default function LoginPage() {
 
       const provider = new GoogleAuthProvider();
 
-      await signInWithPopup(auth, provider);
-
-      router.replace("/");
+      // 🔥 iPadも含めて全部redirectに統一
+      await signInWithRedirect(auth, provider);
     } catch (err: any) {
       console.error(err);
       setError(err?.message ?? "Googleログイン失敗");
-    } finally {
       setLoading(false);
     }
   };
