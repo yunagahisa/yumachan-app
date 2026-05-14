@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 
 import { auth } from "@/lib/firebase";
@@ -21,10 +21,18 @@ export default function LoginPage() {
 
   const router = useRouter();
 
-  // ✅ 1つだけの状態監視
+  // 🔥 初期ロード判定（iPadバグ対策の核心）
+  const initialized = useRef(false);
+
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
       console.log("AUTH STATE:", user);
+
+      // ❗初回は無視（iPadの勝手復元対策）
+      if (!initialized.current) {
+        initialized.current = true;
+        return;
+      }
 
       if (user) {
         router.replace("/");
@@ -32,7 +40,7 @@ export default function LoginPage() {
     });
 
     return () => unsub();
-  }, []);
+  }, [router]);
 
   const handleLogin = async () => {
     try {
