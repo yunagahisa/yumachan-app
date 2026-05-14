@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 import { auth } from "@/lib/firebase";
 
@@ -12,245 +13,132 @@ import {
   getRedirectResult,
   GoogleAuthProvider,
   fetchSignInMethodsForEmail,
+  onAuthStateChanged,
 } from "firebase/auth";
 
-import { useRouter } from "next/navigation";
-
 export default function LoginPage() {
-
   const [email, setEmail] = useState("");
-
   const [password, setPassword] = useState("");
-
   const [error, setError] = useState("");
-
   const [loading, setLoading] = useState(false);
 
   const router = useRouter();
 
   const goNext = () => {
-    window.location.href = "/";
+    router.push("/");
   };
 
-  // redirect復帰
+  // ✅ ログイン状態監視（iPad対策の本体）
   useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        goNext();
+      }
+    });
 
-    const checkRedirect = async () => {
+    return () => unsubscribe();
+  }, []);
 
+  // ✅ redirect復帰（補助）
+  useEffect(() => {
+    const run = async () => {
       try {
+        const result = await getRedirectResult(auth);
 
-        const result =
-          await getRedirectResult(auth);
-
-        // iPad redirect成功
         if (result?.user) {
-
-          alert("Googleログイン成功");
-
           goNext();
+          return;
         }
 
-        // 既にログイン済みならhomeへ
-        else if (auth.currentUser) {
-
+        // fallback（復帰遅延対策）
+        if (auth.currentUser) {
           goNext();
         }
-
       } catch (err) {
-
         console.error(err);
       }
     };
 
-    checkRedirect();
-
+    run();
   }, []);
 
   // EMAIL LOGIN
   const handleLogin = async () => {
-
     try {
-
       setLoading(true);
-
       setError("");
 
-      // Google登録済み確認
-      const methods =
-        await fetchSignInMethodsForEmail(
-          auth,
-          email
-        );
+      const methods = await fetchSignInMethodsForEmail(auth, email);
 
-      if (
-        methods.includes("google.com")
-      ) {
-
-        setError(
-          "このメールはGoogleログインで登録されています"
-        );
-
-        setLoading(false);
-
+      if (methods.includes("google.com")) {
+        setError("このメールはGoogleログインで登録されています");
         return;
       }
 
-      await signInWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
-
-      alert("ログイン成功");
+      await signInWithEmailAndPassword(auth, email, password);
 
       goNext();
-
     } catch (err: any) {
-
       console.error(err);
 
-      if (
-        err.code ===
-        "auth/too-many-requests"
-      ) {
-
-        setError(
-          "ログイン失敗が多すぎます。少し待ってください。"
-        );
-
-      } else if (
-        err.code ===
-        "auth/invalid-credential"
-      ) {
-
-        setError(
-          "メールまたはパスワードが違います"
-        );
-
+      if (err.code === "auth/too-many-requests") {
+        setError("ログイン失敗が多すぎます。少し待ってください。");
+      } else if (err.code === "auth/invalid-credential") {
+        setError("メールまたはパスワードが違います");
       } else {
-
         setError(err.message);
       }
-
     } finally {
-
       setLoading(false);
     }
   };
 
   // SIGNUP
   const handleSignup = async () => {
-
     try {
-
       setLoading(true);
-
       setError("");
 
-      await createUserWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
-
-      alert("登録成功");
+      await createUserWithEmailAndPassword(auth, email, password);
 
       goNext();
-
     } catch (err: any) {
-
       console.error(err);
-
       setError(err.message);
-
     } finally {
-
       setLoading(false);
     }
   };
 
-  // GOOGLE LOGIN
+  // GOOGLE LOGIN（統一：全部redirectでもOK）
   const handleGoogle = async () => {
-
     try {
-
       setLoading(true);
-
       setError("");
 
-      const provider =
-        new GoogleAuthProvider();
+      const provider = new GoogleAuthProvider();
 
-      const isIPad =
-        /iPad|Macintosh/.test(
-          navigator.userAgent
-        ) &&
-        "ontouchend" in document;
-
-      // iPad
-      if (isIPad) {
-
-        await signInWithRedirect(
-          auth,
-          provider
-        );
-
-      } else {
-
-        // PC/Mac
-        await signInWithPopup(
-          auth,
-          provider
-        );
-
-        alert("Googleログイン成功");
-
-        goNext();
-      }
-
+      // iPad判定やめて安定優先
+      await signInWithRedirect(auth, provider);
     } catch (err: any) {
-
       console.error(err);
 
-      if (
-        err.code ===
-        "auth/popup-blocked"
-      ) {
-
-        setError(
-          "Popupがブロックされました"
-        );
-
-      } else {
-
-        setError(err.message);
-      }
-
+      setError(err.message);
       setLoading(false);
     }
   };
 
   return (
-
     <div style={styles.container}>
+      <img src="/logo.png" alt="logo" style={styles.logo} />
 
-      <img
-        src="/logo.png"
-        alt="logo"
-        style={styles.logo}
-      />
-
-      <h1 style={styles.title}>
-        Login / Sign Up
-      </h1>
+      <h1 style={styles.title}>Login / Sign Up</h1>
 
       <input
         style={styles.input}
         placeholder="Email"
         value={email}
-        onChange={(e) =>
-          setEmail(e.target.value)
-        }
+        onChange={(e) => setEmail(e.target.value)}
       />
 
       <input
@@ -258,9 +146,7 @@ export default function LoginPage() {
         type="password"
         placeholder="Password"
         value={password}
-        onChange={(e) =>
-          setPassword(e.target.value)
-        }
+        onChange={(e) => setPassword(e.target.value)}
       />
 
       {/* LOGIN */}
@@ -270,11 +156,7 @@ export default function LoginPage() {
           handleLogin();
         }}
       >
-        <button
-          type="submit"
-          style={styles.button}
-          disabled={loading}
-        >
+        <button type="submit" style={styles.button} disabled={loading}>
           Log In
         </button>
       </form>
@@ -286,11 +168,7 @@ export default function LoginPage() {
           handleSignup();
         }}
       >
-        <button
-          type="submit"
-          style={styles.button}
-          disabled={loading}
-        >
+        <button type="submit" style={styles.button} disabled={loading}>
           Sign Up
         </button>
       </form>
@@ -304,33 +182,19 @@ export default function LoginPage() {
           handleGoogle();
         }}
       >
-        <button
-          type="submit"
-          style={styles.googleButton}
-          disabled={loading}
-        >
+        <button type="submit" style={styles.googleButton} disabled={loading}>
           Continue with Google
         </button>
       </form>
 
-      {loading && (
-        <p style={styles.loading}>
-          Loading...
-        </p>
-      )}
+      {loading && <p style={styles.loading}>Loading...</p>}
 
-      {error && (
-        <p style={styles.error}>
-          {error}
-        </p>
-      )}
-
+      {error && <p style={styles.error}>{error}</p>}
     </div>
   );
 }
 
 const styles = {
-
   container: {
     minHeight: "100dvh",
     display: "flex",
