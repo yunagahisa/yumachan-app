@@ -1,16 +1,34 @@
 import { db } from "@/lib/firebase";
+
 import {
   collection,
   getDocs,
 } from "firebase/firestore";
 
-export const getUserYumas = async (userId: string) => {
-  const ref = collection(db, "users", userId, "yumas");
+export const getUserYumas = async (
+  userId: string
+) => {
 
-  const snapshot = await getDocs(ref);
+  const ref = collection(
+    db,
+    "users",
+    userId,
+    "yumas"
+  );
 
-  return snapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  }));
+  const snapshot =
+    await getDocs(ref);
+
+  return snapshot.docs.map(
+    (doc) => ({
+
+      id: doc.id,
+
+      ...doc.data(),
+
+      acquiredDate:
+        doc.data()
+          .acquiredDate || null,
+    })
+  );
 };
