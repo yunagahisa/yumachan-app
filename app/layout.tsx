@@ -65,7 +65,7 @@ const styles = {
 
     alignItems:"center",
 
-    backgroundColor:"#EEF2F3",
+    backgroundColor:"#F0F2F5",
 
     backgroundImage:
       `
@@ -86,7 +86,7 @@ const styles = {
 
   width:"100%",
 
-  maxWidth:"390px",
+  maxWidth:"350px",
 
   height:"100dvh",
 

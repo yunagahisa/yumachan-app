@@ -1,13 +1,12 @@
 "use client";
 
-import Link from "next/link";
-
-import {
-useParams
-}
-from "next/navigation";
+import ParticleSystem from "@/app/components/ParticleSystem";
+import { useParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 export default function InteractPage(){
+
+const router = useRouter();
 
 const params=
 useParams();
@@ -19,17 +18,22 @@ return(
 
 <div style={styles.container}>
 
-<Link
+        <ParticleSystem />
 
-href={`/my/${yumaId}`}
+<div style={styles.topBar}>
 
-style={styles.backButton}
-
+<button
+  style={styles.backButton}
+  onClick={() => router.back()}
 >
+  <img
+    src="/collection-icon.png"
+    style={styles.menuIcon}
+    alt="Collection"
+  />
+</button>
 
-← Back
-
-</Link>
+</div>
 
 <div style={styles.placeholder}>
 
@@ -67,19 +71,41 @@ background:"#fff",
 
 },
 
+
 backButton:{
 
-position:"absolute",
+width:"30px",
+height:"30px",
 
-top:"40px",
+borderRadius:"999px",
 
-left:"20px",
+border:"none",
 
-textDecoration:"none",
+background:
+"#FFFEFB",
 
-color:"#696969",
+display:"flex",
+justifyContent:"center",
+alignItems:"center",
 
-fontWeight:600,
+cursor:"pointer",
+
+boxShadow:
+"0px 0px 5px rgba(0,0,0,0.22)",
+
+color:"#DCCBDB",
+
+fontSize:"0px",
+
+},
+
+menuIcon:{
+
+  width:"14px",
+
+  height:"14px",
+
+  objectFit:"contain",
 
 },
 
@@ -111,6 +137,19 @@ fontSize:"14px",
 
 color:"#696969",
 
+},
+
+topBar:{
+  position:"absolute",
+  top:"44px",
+  left:"18px",
+  right:"18px",
+
+  display:"flex",
+  justifyContent:"space-between",
+  alignItems:"center",
+
+  zIndex:2000,
 },
 
 };

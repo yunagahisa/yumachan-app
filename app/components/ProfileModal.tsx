@@ -198,10 +198,12 @@ border:"none",
 background:"#ffffffff",
 
 
-color:"#000000ff",
+color:"#E0DCD5",
 
 
 fontSize:"18px",
+
+fontWeight:800,
 
 
 cursor:"pointer",

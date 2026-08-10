@@ -4,80 +4,71 @@ import { useEffect, useState } from "react";
 import { auth } from "@/lib/firebase";
 import { getUserYumas } from "@/lib/getUserYumas";
 import { getWork } from "@/lib/getWork";
-import { useRouter } from "next/navigation";
+import MyYumaPageContent from "@/app/components/MyYumaPageContent";
 
-export default function ProfilePage() {
+export default function ProfilePage({
+
+  collections,
+
+  onSquadChange,
+
+}:{
+
+  collections:any[];
+
+  onSquadChange:(
+    yumaId:string,
+    next:boolean
+  )=>void;
+
+}) {
 
  const [nickname,setNickname]
  = useState("");
 
- const [collections,setCollections]
- = useState<any[]>([]);
+ const [selectedYumaId, setSelectedYumaId]
+ = useState<string | null>(null);
 
- const router = useRouter();
+ const [selectedYuma,setSelectedYuma]
+ = useState<any>(null);
 
  useEffect(()=>{
 
-   const fetchData=async()=>{
+  const load=async()=>{
 
-     const user=
-     auth.currentUser;
+    if(!selectedYumaId){
 
-     if(!user)return;
+      setSelectedYuma(null);
 
-     setNickname(
-       user.displayName ||
-       "Guest"
-     );
+      return;
 
-     const yumas=
-     await getUserYumas(
-       user.uid
-     );
+    }
 
-     const items=
-     await Promise.all(
+    const work=
+      await getWork(selectedYumaId);
 
-       yumas.map(
-         async(
-           yuma:any
-         )=>{
+    setSelectedYuma(work);
+
+  };
+
+  load();
+
+},[selectedYumaId]);
 
 
-           const work=
-           await getWork(
-             yuma.id
-           );
+useEffect(()=>{
 
-           return{
+  const user =
+    auth.currentUser;
 
-             ...work,
+  if(!user)return;
 
-             id:yuma.id,
+  setNickname(
+    user.displayName ||
+    "Guest"
+  );
 
-             acquiredDate:
-             yuma.acquiredDate,
-
-             inSquad:
-             yuma.inSquad,
-
-           };
-
-         }
-       )
-
-     );
-
-
-     setCollections(
-       items
-     );
-
-   };
-
-   fetchData();
-
- },[]);
+},[]);
 
  return(
 
@@ -93,7 +84,9 @@ export default function ProfilePage() {
 
 <h2 style={styles.headerTitle}>
 
-Collection
+{selectedYumaId
+?"My Yuma"
+:"Collection"}
 
 </h2>
 
@@ -103,209 +96,148 @@ Collection
 {/* User */}
 
 
+{!selectedYumaId && (
+
 <div style={styles.userRow}>
 
-<div style={styles.icon}/>
+  <div style={styles.icon}/>
 
-<h2 style={styles.nickname}>
+  <h2 style={styles.nickname}>
 
+    {nickname}
 
-{nickname} 様
-
-
-</h2>
+  </h2>
 
 </div>
+
+)}
 
 
 {/* Scroll Area */}
 
-<div style={styles.collectionArea}>
+{selectedYumaId ? (
 
-{collections.map(
-(item)=>{
+  <div style={styles.contentArea}>
 
-const date=
-item.acquiredDate
-?.toDate?.();
+    <MyYumaPageContent
 
-const formattedDate=
-date
-?`${date.getFullYear()}.${String(
-date.getMonth()+1
-).padStart(
-2,
-"0"
-)}.${String(
-date.getDate()
-).padStart(
-2,
-"0"
-)}`
-:"";
+  yumaId={selectedYumaId}
 
+  onSquadChange={
+    onSquadChange
+  }
 
+  onClose={()=>{
+    setSelectedYumaId(null);
+  }}
 
-
-return(
-
-
-<div
- key={item.id}
- style={styles.card}
- onClick={() => router.push(`/my/${item.id}`)}
->
-
-
-{/* image */}
-
-
-<div
-style={styles.imageGroup}
->
-
-
-<img
-src={
-item.workImageUrl
-}
-style={
-styles.workImage
-}
 />
 
+  </div>
 
-<img
-src={
-item.imageUrl
-}
-style={
-styles.yumaImage
-}
-/>
+) : (
 
+  <div style={styles.collectionArea}>
 
-</div>
+    {collections.map((item)=>{
 
+      const date =
+        item.acquiredDate?.toDate?.();
 
+      const formattedDate =
+        date
+        ? `${date.getFullYear()}.${String(
+            date.getMonth()+1
+          ).padStart(2,"0")}.${String(
+            date.getDate()
+          ).padStart(2,"0")}`
+        : "";
 
+      return(
 
-{/* right */}
+        <div
 
+          key={item.id}
 
-<div
-style={
-styles.textArea
-}
->
+          style={styles.card}
 
+          onClick={()=>
+            setSelectedYumaId(item.id)
+          }
 
-<div
-style={
-styles.titleRow
-}
->
+        >
 
+          <div style={styles.imageGroup}>
 
-<p
-style={
-styles.workTitle
-}
->
+            <img
 
+              src={item.imageUrl}
 
-{item.title}
+              style={styles.yumaImage}
 
+            />
 
-</p>
+          </div>
 
+          <div style={styles.textArea}>
 
-{item.type===
-"limited"&&(
+            <div style={styles.titleRow}>
 
+              <p style={styles.workTitle}>
 
-<img
-src="/limited-icon.png"
-style={
-styles.typeIcon
-}
-/>
+                {item.title}
 
+              </p>
+
+              {item.type==="limited"&&(
+
+                <img
+
+                  src="/limited-icon.png"
+
+                  style={styles.typeIcon}
+
+                />
+
+              )}
+
+              {item.type==="custom"&&(
+
+                <img
+
+                  src="/custom-icon.png"
+
+                  style={styles.typeIcon}
+
+                />
+
+              )}
+
+            </div>
+
+            <p style={styles.description}>
+
+              {item.description}
+
+            </p>
+
+            <p style={styles.date}>
+
+              {formattedDate}
+
+            </p>
+
+          </div>
+
+        </div>
+
+      );
+
+    })}
+
+  </div>
 
 )}
-
-
-{item.type===
-"custom"&&(
-
-
-<img
-src="/custom-icon.png"
-style={
-styles.typeIcon
-}
-/>
-
-
-)}
-
-
-</div>
-
-
-
-
-<p
-style={
-styles.description
-}
->
-
-
-{
-item.description
-}
-
-
-</p>
-
-
-
-
-<p
-style={
-styles.date
-}
->
-
-
-{
-formattedDate
-}
-
-
-</p>
-
-
-</div>
-
-
-</div>
-
-
-);
-
-
-}
-
-
-)}
-
-
-</div>
-
-
-
 
 </div>
 
@@ -394,10 +326,10 @@ margin:0,
 fontSize:"20px",
 
 
-fontWeight:600,
+fontWeight:700,
 
 
-color:"#000000ff",
+color:"#C99CCD",
 
 
 },
@@ -453,7 +385,7 @@ fontWeight:550,
 margin:0,
 
 
-color:"#000000ff",
+color:"#C99CCD",
 
 
 },
@@ -497,7 +429,7 @@ display:"flex",
 
 alignItems:"center",
 
-gap:"0px",
+gap:"10px",
 
 borderBottom:
 "0px solid #0b344e74",
@@ -532,46 +464,13 @@ flexShrink:0,
 },
 
 
-workImage:{
-
-
-width:"62px",
-
-
-height:"62px",
-
-
-objectFit:
-"contain",
-
-
-borderRadius:
-"8px",
-
-
-background:
-"#f4f4f4",
-
-
-},
-
-
 yumaImage:{
 
+  width:"62px",
 
-width:"0px",
+  height:"62px",
 
-
-height:"0px",
-
-
-objectFit:
-"cover",
-
-
-borderRadius:
-"12px",
-
+  objectFit:"contain",
 
 },
 
@@ -639,7 +538,7 @@ fontSize:"12px",
 fontWeight:600,
 
 
-color:"#000000ff",
+color:"#7a7874ff",
 
 
 },
@@ -682,7 +581,7 @@ marginBottom:"25px",
 marginLeft:"5px",
 
 
-color:"#000000ff",
+color:"#7a7874ff",
 
 
 paddingBottom:"30px",
@@ -705,6 +604,15 @@ color:"#aaa",
 
 },
 
+contentArea:{
+
+  flex:1,
+
+  overflow:"hidden",
+
+  marginTop:"10px",
+
+},
 
 };
 

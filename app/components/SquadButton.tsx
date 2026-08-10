@@ -8,10 +8,15 @@ export default function SquadButton({
   initialInSquad,
   yumaId,
   style,
+  onSquadChange,
 }: {
-  initialInSquad: boolean;
-  yumaId: string;
-  style?: React.CSSProperties;
+  initialInSquad:boolean;
+  yumaId:string;
+  style?:React.CSSProperties;
+  onSquadChange?:(
+    yumaId:string,
+    next:boolean
+  )=>void;
 }) {
   const [inSquad, setInSquad] =
     useState(initialInSquad);
@@ -36,12 +41,23 @@ export default function SquadButton({
         setInSquad(next);
 
         toggleSquad(
-          user.uid,
-          yumaId,
-          inSquad
-        ).catch(() => {
-          setInSquad(!next);
-        });
+  user.uid,
+  yumaId,
+  inSquad
+)
+.then(()=>{
+
+  onSquadChange?.(
+    yumaId,
+    next
+  );
+
+})
+.catch(()=>{
+
+  setInSquad(!next);
+
+});
       }}
     >
 

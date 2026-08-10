@@ -1,9 +1,11 @@
 "use client";
 
+import ParticleSystem from "@/app/components/ParticleSystem";
+
 import ProfileModal from "@/app/components/ProfileModal";
 import ProfilePage from "@/app/profile/page";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 
 import { signOut } from "firebase/auth";
@@ -23,6 +25,9 @@ export default function Home() {
 
   const [works, setWorks] =
     useState<any[]>([]);
+    
+  const [collections, setCollections] =
+    useState<any[]>([]);
 
   const [profileOpen,setProfileOpen]
 = useState(false);
@@ -36,23 +41,11 @@ export default function Home() {
   const [displayName, setDisplayName] =
   useState("");
 
-    useEffect(() => {
+  const sheetRef = useRef<HTMLDivElement>(null);
 
-  const migrateName = async () => {
+  const startY = useRef(0);
 
-    if (!user) return;
-
-    await updateProfile(user, {
-      displayName: "Kino Nagahisa"
-    });
-
-    console.log("displayName updated");
-
-  };
-
-  migrateName();
-
-}, [user]);
+  const currentY = useRef(0);
 
     useEffect(() => {
 
@@ -64,58 +57,138 @@ export default function Home() {
 
     }, [user]);
 
+    const handleSquadChange = (
+  yumaId:string,
+  next:boolean
+)=>{
+
+  setCollections(prev=>{
+
+    const updated = prev.map(item=>
+
+      item.id===yumaId
+
+        ? {
+            ...item,
+            inSquad:next,
+          }
+
+        : item
+
+    );
+
+    setWorks(
+      updated.filter(item=>item.inSquad)
+    );
+
+    return updated;
+
+  });
+
+};
+
+    const fetchYumas = async()=>{
+
+  if(!user) return;
+
+  const yumas =
+    await getUserYumas(user.uid);
+
+  const collectionData =
+    await Promise.all(
+
+      yumas.map(async(yuma:any)=>{
+
+        const work =
+          await getWork(yuma.id);
+
+        return{
+
+          ...work,
+
+          id:yuma.id,
+
+          acquiredDate:
+          yuma.acquiredDate,
+
+          inSquad:
+          yuma.inSquad,
+
+        };
+
+      })
+
+    );
+
+  setCollections(collectionData);
+
+  setWorks(
+
+    collectionData.filter(
+
+      item=>item.inSquad
+
+    )
+
+  );
+
+};
+
   useEffect(() => {
-
-    const fetchYumas =
-      async () => {
-
-      if (!user) return;
-
-      const yumas =
-        await getUserYumas(
-          user.uid
-        );
-
-      const squadYumas =
-      yumas.filter(
-      (yuma:any)=>
-      yuma.inSquad===true
-      );
-
-      const workData =
-        await Promise.all(
-
-          squadYumas.map(
-            async (
-              yuma:any
-            ) => {
-
-              const work =
-                await getWork(
-                  yuma.id
-                );
-
-              return {
-
-                id:yuma.id,
-
-                ...work,
-              };
-            }
-          )
-        );
-
-      setWorks(
-        workData
-      );
-
-    };
 
     fetchYumas();
 
   },[user]);
 
+const handleTouchStart = (
+  e: React.TouchEvent
+) => {
 
+  startY.current =
+    e.touches[0].clientY;
+
+};
+
+const handleTouchMove = (
+  e: React.TouchEvent
+) => {
+
+  if(!sheetRef.current) return;
+
+  currentY.current =
+    e.touches[0].clientY;
+
+  const diff =
+    currentY.current -
+    startY.current;
+
+  if(diff < 0) return;
+
+  sheetRef.current.style.transform =
+    `translateY(${diff}px)`;
+
+};
+
+const handleTouchEnd = () => {
+
+  if(!sheetRef.current) return;
+
+  const diff =
+    currentY.current -
+    startY.current;
+
+  if(diff > 120){
+
+    setAccountOpen(false);
+
+  }else{
+
+    sheetRef.current.style.transform =
+      "translateY(0)";
+
+  }
+
+};
 
   // loading
   if (loading){
@@ -185,13 +258,50 @@ export default function Home() {
 
     <div style={styles.container}>
 
+      <ParticleSystem />
+
+<div style={styles.topBar}>
+
+  <button
+    style={styles.userInfo}
+    onClick={() => setAccountOpen(!accountOpen)}
+  >
+    <div style={styles.userIconFrame}>
+
+    <div style={styles.userIcon} />
+
+    </div>
+
+    <h2 style={styles.userNickname}>
+      {displayName || "Guest"}
+    </h2>
+
+  </button>
+
+  <button
+  style={styles.menuButton}
+  onClick={() => setProfileOpen(true)}
+>
+  <img
+    src="/collection-icon.png"
+    style={styles.menuIcon}
+    alt="Collection"
+  />
+</button>
+
+</div>
+
 <ProfileModal
   open={profileOpen}
   onClose={()=>
     setProfileOpen(false)
   }
  >
-   <ProfilePage/>
+   <ProfilePage
+  collections={collections}
+  onSquadChange={handleSquadChange}
+/>
+
  </ProfileModal>
 
 {accountOpen && (
@@ -204,9 +314,17 @@ export default function Home() {
       }
     />
 
-    <div style={styles.accountPopup}>
+    <div
+  ref={sheetRef}
+  style={styles.accountPopup}
+  onTouchStart={handleTouchStart}
+  onTouchMove={handleTouchMove}
+  onTouchEnd={handleTouchEnd}
+>
 
-      <button
+  <div style={styles.sheetHandle} />
+
+  <button
 
         style={styles.popupClose}
 
@@ -221,83 +339,71 @@ export default function Home() {
       </button>
 
       <p style={styles.currentLabel}>
+  Currently in
+</p>
 
-        Currently in
+<div style={styles.profileRow}>
 
-      </p>
+  <div style={styles.popupUserIcon} />
 
-      <div
-        style={{
-          display:"flex",
-          alignItems:"center",
-          gap:"10px"
+  <div style={styles.profileText}>
+
+    <div
+      style={{
+        display:"flex",
+        alignItems:"center",
+        gap:"8px",
+      }}
+    >
+
+      {editingName ? (
+
+        <input
+          value={displayName}
+          onChange={(e)=>
+            setDisplayName(e.target.value)
+          }
+          style={styles.nameInput}
+        />
+
+      ) : (
+
+        <h2 style={styles.userName}>
+          {displayName}
+        </h2>
+
+      )}
+
+      <button
+        style={styles.editButton}
+        onClick={async()=>{
+
+          if(!user) return;
+
+          if(editingName){
+
+            await updateProfile(user,{
+              displayName
+            });
+
+          }
+
+          setEditingName(!editingName);
+
         }}
       >
+        ✎
+      </button>
 
-        {editingName ? (
+    </div>
 
-          <input
+    <p style={styles.userEmail}>
+      {user?.email}
+    </p>
 
-            value={displayName}
+  </div>
 
-            onChange={(e)=>
-              setDisplayName(
-                e.target.value
-              )
-            }
-
-            style={styles.nameInput}
-
-          />
-
-        ) : (
-
-          <h2 style={styles.userName}>
-
-            {displayName}
-
-          </h2>
-
-        )}
-
-        <button
-
-          style={styles.editButton}
-
-          onClick={async()=>{
-
-            if(!user) return;
-
-            if(editingName){
-
-              await updateProfile(
-                user,
-                {
-                  displayName
-                }
-              );
-
-            }
-
-            setEditingName(
-              !editingName
-            );
-
-          }}
-
-        >
-
-          ✎
-
-        </button>
-
-      </div>
-
-      <p style={styles.userEmail}>
-
-        {user?.email}
-
-      </p>
+</div>
 
       <button
 
@@ -323,46 +429,6 @@ export default function Home() {
   </>
 
 )}
-
-
-      {/* Account */}
-
-      <button
-        style={styles.accountButton}
-        onClick={() =>
-          setAccountOpen(!accountOpen)
-        }
-       >
-
-        <div style={styles.accountIcon}>
-
-          <div style={styles.accountHead} />
-
-          <div style={styles.accountBody} />
-
-        </div>
-
-      </button>
-
-
-      {/* Floating Menu */}
-
-      <div
-        style={
-          styles.menuArea
-        }
-      >
-        <button
-
-style={styles.menuButton}
-
-onClick={() => setProfileOpen(true)}
->
-
-Collection
-</button>
-      </div>
-
 
 
       {/* Yuma Area */}
@@ -431,7 +497,35 @@ Collection
 
         ))}
 
-      </div>
+            </div>
+
+      <style jsx global>{`
+
+      @keyframes sheetUp{
+
+        from{
+          transform:translateY(100%);
+        }
+
+        to{
+          transform:translateY(0);
+        }
+
+      }
+
+      @keyframes fadeIn{
+
+        from{
+          opacity:0;
+        }
+
+        to{
+          opacity:1;
+        }
+
+      }
+
+      `}</style>
 
     </div>
 
@@ -447,7 +541,7 @@ container:{
 
 minHeight:"100vh",
 
-background:"#fff",
+background:"#ffffffff",
 
 padding:"24px",
 
@@ -487,58 +581,30 @@ cursor:"pointer",
 
 },
 
-menuArea:{
-
-position:"absolute",
-
-right:"20px",
-
-bottom:"40px",
-
-display:"flex",
-
-flexDirection:
-"column" as const,
-
-gap:"14px",
-
-zIndex:1000,
-
-},
-
 menuButton:{
 
-marginBottom:"50px",
+width:"30px",
+height:"30px",
 
-width:"68px",
+borderRadius:"999px",
 
-height:"68px",
-
-borderRadius:
-"999px",
+border:"none",
 
 background:
-"#ffffffff",
+"#FFFEFB",
 
 display:"flex",
+justifyContent:"center",
+alignItems:"center",
 
-justifyContent:
-"center",
+cursor:"pointer",
 
-alignItems:
-"center",
-
-textDecoration:
-"none",
+boxShadow:
+"0px 0px 5px rgba(0,0,0,0.22)",
 
 color:"#DCCBDB",
 
-fontSize:"12px",
-
-fontWeight:700,
-
-boxShadow:
-"0px 4px 12px rgba(0,0,0,0.15)",
+fontSize:"0px",
 
 },
 
@@ -550,7 +616,9 @@ width:"100%",
 
 height:"80vh",
 
-marginTop:"120px",
+marginTop:"320px",
+
+marginLeft:"40px",
 
 },
 
@@ -558,28 +626,18 @@ yumaCard:{
 
 position:"absolute",
 
-width:"60px",
-
-textDecoration:
-"none",
-
-color:"#222",
+width:"240px",
 
 },
 
 image:{
 
-width:"60px",
+width:"220px",
 
-height:"60px",
-
-borderRadius:
-"12px",
+height:"220px",
 
 objectFit:
-"cover",
-
-background:"#eee",
+"contain",
 
 },
 
@@ -651,32 +709,39 @@ backdrop:{
 
   inset:0,
 
+  background:"rgba(0,0,0,0.32)",
+
   zIndex:3000,
+
+  animation:"fadeIn 0.25s",
 
 },
 
 accountPopup:{
 
-  position:"absolute",
+  position:"fixed",
 
-  top:"75px",
+  left:0,
 
-  right:"20px",
+  right:0,
 
-  width:"290px",
+  bottom:0,
 
-  height:"175px",
+  background:"#fff",
 
-  background:"#ffffffff",
+  borderTopLeftRadius:"28px",
 
-  borderRadius:"15px",
+  borderTopRightRadius:"28px",
 
   padding:"28px",
 
+  paddingBottom:"42px",
+
   zIndex:4000,
 
-  boxShadow:
-  "0px 0px 10px rgba(0, 0, 0, 0.12)",
+  boxShadow:"0 -8px 30px rgba(0,0,0,0.15)",
+
+  animation:"sheetUp 0.28s ease",
 
 },
 
@@ -696,19 +761,19 @@ popupClose:{
 
   cursor:"pointer",
 
-  color:"#000000ff",
+  color:"#E0DCD5",
 
 },
 
 currentLabel:{
 
-  color:"#696962",
+  color:"#62625B",
 
   fontSize:"12px",
 
   fontWeight:500,
 
-  marginTop:"-5px",
+  marginTop:"-10px",
 
   marginLeft:"-4px",
 
@@ -724,7 +789,7 @@ userName:{
 
   marginTop:"6px",
 
-  color:"#000000ff",
+  color:"#000000",
 
   marginLeft:"-4px",
 
@@ -734,13 +799,13 @@ userName:{
 
 userEmail:{
 
-  color:"#696962",
+  color:"#62625B",
 
-  fontSize:"14px",
+  fontSize:"12px",
 
-  marginTop:"6px",
+  marginTop:"0px",
 
-  fontWeight:500,
+  fontWeight:400,
 
   marginLeft:"-4px",
 
@@ -748,7 +813,7 @@ userEmail:{
 
 logoutPopupButton:{
 
-  marginTop:"34px",
+  marginTop:"22px",
 
   border:"none",
 
@@ -756,7 +821,7 @@ logoutPopupButton:{
 
   fontSize:"14px",
 
-  fontWeight:700,
+  fontWeight:600,
 
   cursor:"pointer",
 
@@ -802,56 +867,144 @@ nameInput:{
 
 },
 
-accountIcon:{
+topBar:{
+  position:"absolute",
+  top:"44px",
+  left:"18px",
+  right:"18px",
 
-  width:"24px",
+  display:"flex",
+  justifyContent:"space-between",
+  alignItems:"center",
 
-  height:"24px",
-
-  position:"relative",
-
+  zIndex:2000,
 },
 
-accountHead:{
+userInfo: {
+  display: "flex",
+  alignItems: "center",
+  gap: "9px",
 
-  position:"absolute",
+  background:"none",
+  border:"none",
+  padding:0,
 
-  top:"1px",
+  cursor:"pointer",
+},
 
-  left:"7px",
+userIcon: {
+  width: "28px",
+  height: "28px",
+  borderRadius: "999px",
+  background: "#DBDFE4",
+},
 
-  width:"10px",
+userNickname: {
+  margin: 0,
+  fontSize: "16px",
+  fontWeight: 610,
+  color: "#C79CCD",
+},
 
-  height:"10px",
+profileRow:{
+  display:"flex",
+  alignItems:"center",
+  gap:"16px",
 
-  border:"1.5px solid #DCCBDB",
+  marginTop:"15px",
+},
+
+popupUserIcon:{
+  width:"56px",
+  height:"56px",
 
   borderRadius:"999px",
 
-  boxSizing:"border-box",
+  background:"#d9d9d9",
+
+  flexShrink:0,
+},
+
+profileText:{
+  display:"flex",
+  flexDirection:"column",
+
+  justifyContent:"center",
+
+  flex:1,
+},
+
+menuIcon:{
+
+  width:"14px",
+
+  height:"14px",
+
+  objectFit:"contain",
 
 },
 
-accountBody:{
+userIconFrame:{
 
-  position:"absolute",
+  width:"34px",
+  height:"34px",
+  border: "1.8px solid #DBDFE4",
+  borderRadius:"999px",
+  display: "flex",
+  justifyContent:"center",
+  alignItems:"center",
+  flexShrink:0,
 
-  top:"12px",
+},
 
-  left:"3px",
+sheetHandle:{
 
-  width:"18px",
+width:"42px",
 
-  height:"8px",
+height:"5px",
 
-  border:"1.5px solid #DCCBDB",
+borderRadius:"999px",
 
-  borderBottom:"none",
+background:"#D8D8D8",
 
-  borderRadius:"18px 18px 0 0",
-
-  boxSizing:"border-box",
+margin:"-10px auto 20px auto",
 
 },
 
 };
+
+<style jsx global>{`
+
+@keyframes sheetUp{
+
+from{
+
+transform:translateY(100%);
+
+}
+
+to{
+
+transform:translateY(0);
+
+}
+
+}
+
+@keyframes fadeIn{
+
+from{
+
+opacity:0;
+
+}
+
+to{
+
+opacity:1;
+
+}
+
+}
+
+`}</style>
