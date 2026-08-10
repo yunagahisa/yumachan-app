@@ -70,22 +70,27 @@ useEffect(() => {
 
     setWork(data);
 
-    if (userYuma) {
+if (userYuma) {
 
-      setInSquad(
-        userYuma.inSquad
-      );
+  const yumaData = userYuma as {
+    id: string;
+    inSquad?: boolean;
+    favorite?: boolean;
+    rarity?: string;
+  };
 
-      setFavorite(
-        userYuma.favorite ??
-        false
-      );
+  setInSquad(
+    yumaData.inSquad ?? false
+  );
 
-      setRarity(
-        userYuma.rarity ??
-        "normal"
-      );
-    }
+  setFavorite(
+    yumaData.favorite ?? false
+  );
+
+  setRarity(
+    yumaData.rarity ?? "normal"
+  );
+}
   }
 );
 

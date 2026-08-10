@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { auth } from "@/lib/firebase";
-import { getUserYumas } from "@/lib/getUserYumas";
 import { getWork } from "@/lib/getWork";
 import MyYumaPageContent from "@/app/components/MyYumaPageContent";
 
@@ -14,9 +13,9 @@ export default function ProfilePage({
 
 }:{
 
-  collections:any[];
+  collections?: any[];
 
-  onSquadChange:(
+  onSquadChange?:(
     yumaId:string,
     next:boolean
   )=>void;
@@ -139,7 +138,7 @@ useEffect(()=>{
 
   <div style={styles.collectionArea}>
 
-    {collections.map((item)=>{
+    {(collections ?? []).map((item)=>{
 
       const date =
         item.acquiredDate?.toDate?.();

@@ -45,7 +45,7 @@ export default function RootLayout({
   );
 }
 
-const styles = {
+const styles: any = {
 
   body: {
 
